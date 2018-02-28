@@ -1,0 +1,7 @@
+*.sw[p,o]
+terraform.tfstate*
+.terraform
+terraform.tfvars
+tf.out
+aws-env.config
+id_rsa*
