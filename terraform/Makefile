@@ -1,4 +1,4 @@
-.PHONY: create-vpc-network plan apply depends generate-ssh-keypair generate-nomad-secret-keys generate-consul-secret-keys generate-consul-master-token destroy
+.PHONY: create-vpc-network plan apply depends generate-ssh-keypair generate-nomad-secret-keys generate-consul-secret-keys generate-consul-master-token scp-ssh-key ssh-bastion taint-core-leaders destroy
 
 .DEFAULT_GOAL = help
 
@@ -27,7 +27,8 @@ apply:
 ## Use Terraform to destroy the VPC and all resources
 destroy:
 	@terraform init
-	@terraform apply -destroy
+	@terraform plan -destroy -out=tf.out
+	@terraform apply tf.out
 
 ## rm -rf all state/data files (id_rsa, terraform.tfstate and tfvars)
 clean:
@@ -46,7 +47,7 @@ print-secret-help-msg:
 ## Generate new ssh keypair
 generate-ssh-keypair:
 	@echo "generating SSH keypair"
-	@echo "ssh-keygen -t rsa -b 4096 -f $$PWD/id_rsa"
+	@ssh-keygen -t rsa -b 4096 -f $$PWD/id_rsa
 
 ## Generate Nomad Secret Key (3, you can pick one)
 generate-nomad-secret-keys:
@@ -68,6 +69,18 @@ generate-consul-master-token:
 	@python -c "import uuid; print uuid.uuid4()"
 	@python -c "import uuid; print uuid.uuid4()"
 	@python -c "import uuid; print uuid.uuid4()"
+
+## scp SSH key to bastion host, so we can SSH to other hosts in the deployment
+scp-ssh-key:
+	@scp -i id_rsa id_rsa ubuntu@$$(terraform output bastion_ip):~/.ssh/
+
+## SSH key to bastion host
+ssh-bastion:
+	@ssh -i id_rsa ubuntu@$$(terraform output bastion_ip)
+
+## Taint the leader instances
+taint-core-leaders:
+	@terraform taint -module core-leaders aws_instance.auto-recover
 
 ## Show help screen.
 help:
